@@ -1,0 +1,14 @@
+{
+  "name": "chip-8",
+  "version": "1.0.0",
+  "description": "A CHIP-8 interpreter written in JavaScript.",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Devin Lumley",
+  "repository": "https://github.com/devinwl/chip-8",
+  "license": "ISC",
+  "dependencies": {
+    "fs": "0.0.1-security"
+  }
+}
