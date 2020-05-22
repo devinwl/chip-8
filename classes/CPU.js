@@ -1,13 +1,31 @@
 const { instructions } = require("../constants/instructions");
 
 class CPUError extends Error {
-  constructor(message, instruction = {}, address = 0x0, memory = {}) {
+  constructor(
+    message,
+    instruction = {},
+    PC = 0x0,
+    registers = [],
+    stack = [],
+    ST = -1,
+    DT = -1,
+    I = -1,
+    SP = -1,
+    memory = {}
+  ) {
     super(message);
 
-    this.message = message;
     this.name = "CPUError";
+
+    this.message = message;
     this.instruction = instruction;
-    this.address = address;
+    this.PC = PC;
+    this.registers = registers;
+    this.cpuStack = stack;
+    this.ST = ST;
+    this.DT = DT;
+    this.I = I;
+    this.SP = SP;
     this.memory = memory;
   }
 }
@@ -22,6 +40,12 @@ class CPU {
     this.I = 0; // Index register
     this.SP = -1; // Stack pointer
     this.PC = 0x200; // Program counter
+
+    // The display is represented with Boolean values.
+    // `true` means the pixel is on, `false` is off.
+    this.display = new Array(64)
+      .fill(false)
+      .map(() => new Array(32).fill(false));
   }
 
   /**
@@ -54,42 +78,144 @@ class CPU {
    */
   fetch() {
     if (this.PC > 4094) {
-      throw new CPUError(
-        "Memory out of bounds.",
-        undefined,
-        this._intToHex(this.PC),
-        this.memory
-      );
+      this.throw("Memory out of bounds.");
     }
 
     return (this.memory[this.PC] << 8) | (this.memory[this.PC + 1] << 0);
   }
 
+  /**
+   * Decodes the given `opcode` into an instruction object.
+   * @param {*} opcode
+   */
   decode(opcode) {
     const instruction = instructions.find(
       (instr) => (opcode & instr.mask) === instr.pattern
     );
 
     if (!instruction) {
-      throw new CPUError(
-        "Invalid instruction found.",
-        this._int16ToHex(this.fetch()),
-        this._intToHex(this.PC),
-        this.memory
-      );
+      this.throw("Invalid instruction found.");
     }
 
     return instruction;
   }
 
+  /**
+   * Runs the current instruction.
+   */
   step() {
     const opcode = this.fetch();
     const instruction = this.decode(opcode);
 
-    // TODO: Execute `instruction`.
+    this.execute(opcode, instruction);
+  }
 
-    // TODO: This won't always be the case, depending on the instruction.
+  /**
+   * Executes the `opcode` using data from `instruction`.
+   * @param {Uint16} opcode Opcode from memory.
+   * @param {Object} instruction Instruction data from decoded opcode.
+   */
+  execute(opcode, instruction) {
+    // Determine args (if any).
+    const args = this.args(opcode, instruction);
+
+    switch (instruction.id) {
+      case "CLS": {
+        // TODO: Implement this.
+        this.nextInstruction();
+        break;
+      }
+
+      case "LD_I_NNN": {
+        this.I = args["nnn"];
+
+        this.nextInstruction();
+        break;
+      }
+
+      case "LD_VX_KK": {
+        this.registers[args["x"]] = args["kk"];
+        this.nextInstruction();
+        break;
+      }
+
+      default: {
+        this.nextInstruction();
+        break;
+      }
+    }
+  }
+
+  /**
+   * Given an `opcode` and its decoded `instruction`,
+   * return an object containinng the opcode's arguments
+   * mapped to an object using each argument's `id` key.
+   * @param {*} opcode
+   * @param {*} instruction
+   */
+  args(opcode, instruction) {
+    const args = instruction.arguments;
+    return args.reduce((obj, arg) => {
+      // Bitwise AND with `arg.mask` to isolate the argument.
+      // Then, shift it over `arg.shift` bytes to get the actual value.
+      return {
+        [arg.id]: (opcode & arg.mask) >> arg.shift,
+        ...obj,
+      };
+    }, {});
+  }
+
+  /**
+   * Go to the next instruction in memory, which is
+   * the next 2 bytes.
+   */
+  nextInstruction() {
     this.PC = this.PC + 2;
+  }
+
+  /**
+   * Skip to the instruction after the next, which
+   * is ahead 4 bytes.
+   */
+  skipNextInstruction() {
+    this.PC = this.PC + 4;
+  }
+
+  /**
+   * Prints out the current instruction in a human-
+   * readable way.
+   */
+  debug() {
+    const opcode = this.fetch();
+    const instruction = this.decode(opcode);
+    const args = this.args(opcode, instruction);
+
+    const output = instruction.arguments.reduce((acc, arg) => {
+      return acc.replace(arg.id, args[arg.id]);
+    }, instruction.instruction);
+
+    console.log(output, this._int16ToHex(opcode));
+  }
+
+  /**
+   * Throws a `CPUError` error with param `message.
+   * Included is a full dump of the CPU at the time of
+   * the error.
+   * @param {*} message
+   */
+  throw(message) {
+    throw new CPUError(
+      message,
+      this._int16ToHex(this.fetch()),
+      this._intToHex(this.PC),
+      this.registers,
+      this.stack,
+      this._intToHex(this.ST),
+      this._intToHex(this.DT),
+      this._intToHex(this.I),
+      this._intToHex(this.SP),
+      this.memory
+    );
   }
 
   /**
