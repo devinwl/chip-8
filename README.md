@@ -15,6 +15,16 @@ $ npm start
 
 Keeping track of changes and thought processes as we go.
 
+## 05/23/2020
+
+- Added `jest` library for tests. Added the initial tests for the CPU class.
+- Fixed a nasty recursion bug when throwing an error while the PC was out-of-bounds. Wouldn't have found it without writing a test first!
+- Changed `debug()` up a little.
+
+TODO:
+
+- Mo' tests mo' instructions.
+
 ## 05/22/2020
 
 - Added first few instructions. Refactored the instruction set slightly so it's possible to dynamically determine the argument values as needed.

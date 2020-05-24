@@ -3,7 +3,6 @@ const { instructions } = require("../constants/instructions");
 class CPUError extends Error {
   constructor(
     message,
-    instruction = {},
     PC = 0x0,
     registers = [],
     stack = [],
@@ -18,7 +17,6 @@ class CPUError extends Error {
     this.name = "CPUError";
 
     this.message = message;
-    this.instruction = instruction;
     this.PC = PC;
     this.registers = registers;
     this.cpuStack = stack;
@@ -78,7 +76,7 @@ class CPU {
    */
   fetch() {
     if (this.PC > 4094) {
-      this.throw("Memory out of bounds.");
+      this.throw("Memory out-of-bounds.");
     }
 
     return (this.memory[this.PC] << 8) | (this.memory[this.PC + 1] << 0);
@@ -94,7 +92,7 @@ class CPU {
     );
 
     if (!instruction) {
-      this.throw("Invalid instruction found.");
+      this.throw(`Invalid instruction "${this._int16ToHex(opcode)}" found.`);
     }
 
     return instruction;
@@ -182,7 +180,7 @@ class CPU {
   }
 
   /**
-   * Prints out the current instruction in a human-
+   * Returns the current instruction in a human-
    * readable way.
    */
   debug() {
@@ -194,7 +192,7 @@ class CPU {
       return acc.replace(arg.id, args[arg.id]);
     }, instruction.instruction);
 
-    console.log(output, this._int16ToHex(opcode));
+    return `${this._int16ToHex(opcode)} // ${output}`;
   }
 
   /**
@@ -206,7 +204,6 @@ class CPU {
   throw(message) {
     throw new CPUError(
       message,
-      this._int16ToHex(this.fetch()),
       this._intToHex(this.PC),
       this.registers,
       this.stack,
@@ -255,4 +252,5 @@ class CPU {
 
 module.exports = {
   CPU,
+  CPUError,
 };

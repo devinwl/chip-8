@@ -8,6 +8,6 @@ cpu.load(buffer);
 
 // CPU Loop.
 for (;;) {
-  cpu.debug();
+  console.log(cpu.debug());
   cpu.step();
 }
