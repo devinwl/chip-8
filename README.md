@@ -26,6 +26,7 @@ TODO
 
 - Write tests for RomBuffer.
 - Implement CLS instruction.
+- Support the Vf flag (pixel collisions) in DRW instruction.
 - Write instructions.
 
 ## 05/23/2020
