@@ -79,6 +79,40 @@ const instructions = [
       },
     ],
   },
+  {
+    id: "ADD_VX_KK",
+    description:
+      "Adds KK to the value stored in Vx, then stores the result in Vx.",
+    instruction: "ADD Vx,kk",
+    mask: 0xf000,
+    pattern: 0x7000,
+    arguments: [
+      {
+        id: "x",
+        mask: 0x0f00,
+        shift: 8,
+      },
+      {
+        id: "kk",
+        mask: 0x00ff,
+        shift: 0,
+      },
+    ],
+  },
+  {
+    id: "JP_NNN",
+    description: "Jump to address nnn.",
+    instruction: "JP nnn",
+    mask: 0xf000,
+    pattern: 0x1000,
+    arguments: [
+      {
+        id: "nnn",
+        mask: 0x0fff,
+        shift: 0,
+      },
+    ],
+  },
 ];
 
 module.exports = {

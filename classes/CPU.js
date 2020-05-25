@@ -1,4 +1,5 @@
-const { instructions } = require("../constants/instructions");
+const { instructions } = require("../constants/instructions.constant");
+const { SCREEN_WIDTH, SCREEN_HEIGHT } = require("../constants/CPU.constant");
 
 class CPUError extends Error {
   constructor(
@@ -39,11 +40,10 @@ class CPU {
     this.SP = -1; // Stack pointer
     this.PC = 0x200; // Program counter
 
-    // The display is represented with Boolean values.
-    // `true` means the pixel is on, `false` is off.
-    this.display = new Array(64)
-      .fill(false)
-      .map(() => new Array(32).fill(false));
+    // Each pixel is treated as on or off, like a bit.
+    // To get (x,y), multiple y by `SCREEN_WIDTH`, then add x.
+    // e.g. (12, 8). 8 * 64 = 512. 512 + 12 = 524. 524th pixel!
+    this.display = new Array(SCREEN_WIDTH * SCREEN_HEIGHT).fill(0);
   }
 
   /**
@@ -125,16 +125,57 @@ class CPU {
       }
 
       case "LD_I_NNN": {
-        this.I = args["nnn"];
+        const { nnn } = args;
+        this.I = nnn;
 
         this.nextInstruction();
         break;
       }
 
       case "LD_VX_KK": {
-        this.registers[args["x"]] = args["kk"];
+        const { x, kk } = args;
+        this.registers[x] = kk;
         this.nextInstruction();
         break;
+      }
+
+      case "ADD_VX_KK": {
+        const { x, kk } = args;
+        this.registers[x] = this.registers[x] + kk;
+        this.nextInstruction();
+        break;
+      }
+
+      case "JP_NNN": {
+        const { nnn } = args;
+        this.PC = nnn;
+        break;
+      }
+
+      case "DRW_VX_VY_N": {
+        const { x, y, n } = args;
+        const vx = this.registers[x];
+        const vy = this.registers[y];
+
+        // Read `n` bytes of memory.
+        for (let row = 0; row < n; row++) {
+          // Each row is 8 bits. This represents 1
+          // row pixels 8 pixels wide.
+          const line = this.memory[this.I + row];
+
+          // Get each bit (there are 8).
+          for (let bit = 0; bit < 8; bit++) {
+            const pixel = line & (1 << (7 - bit)) ? 1 : 0;
+
+            // To calculate where to draw the pixel, we need
+            // the starting points (Vx, Vy).
+            // To find the correct y position, we multiply it by
+            // 64 (`SCREEN_WIDTH`) and the current byte we are
+            // on. Then we add the x position, plus the bit we
+            // are currently writing horizontally.
+            this.display[SCREEN_WIDTH * (vy + row) + (vx + bit)] = pixel;
+          }
+        }
       }
 
       default: {
@@ -231,6 +272,34 @@ class CPU {
     }
 
     return lines.join("\n");
+  }
+
+  /**
+   * Reset the CPU to its starting state.
+   * Primarily a helper for testing. Usually
+   * won't reset the CPU during execution.
+   */
+  reset() {
+    this.memory = new Uint8Array(4096);
+    this.registers = new Uint8Array(16);
+    this.stack = new Uint16Array(16);
+    this.ST = 0;
+    this.DT = 0;
+    this.I = 0;
+    this.SP = -1;
+    this.PC = 0x200;
+
+    this.display = new Array(SCREEN_WIDTH * SCREEN_HEIGHT).fill(0);
+  }
+
+  dumpDisplay() {
+    for (let i = 0; i < SCREEN_HEIGHT; i++) {
+      let row = "";
+      for (let j = 0; j < SCREEN_WIDTH; j++) {
+        row = row.concat(this.display[i * SCREEN_WIDTH + j] ? "1" : "0");
+      }
+      console.log(row);
+    }
   }
 
   /**

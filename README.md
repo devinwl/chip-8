@@ -15,6 +15,19 @@ $ npm start
 
 Keeping track of changes and thought processes as we go.
 
+## 05/24/2020
+
+- Draw instruction pretty tricky. Needed to read up on how the display works. Turns out every sprite is 8 bits wide. They are typically 5 bytes long, but can be up to 15. Tinkered with an implementation that used one byte to represent 8 bits (or pixels) of the screen. This seemed great at first until I realized that I might have to "split" the byte depending on where the sprite was being written. For example, bit 12 is in between bytes 1 and 2 (0 indexed). So I would have to chop off the bits from my sprite for both byte 1 and 2. But if I ended up writing to say bit 8, then I'd only need one byte. The logic was confusing and weird. I scrapped it.
+- Decided to go with a straight array of 0 and 1 for the display. It's a 64 x 32 array and uses a bit of math to find the pixel to write to. It's like a giant row of 2048 pixels, but if you break it down by 64 pixels each, you get a nice 64 x 32 display!
+- Added more instructions. I have one working ROM so far!
+- Turns out it's possible to create an infinite loop with a `JP` instruction. Debating if I should add a custom stack buffer to make sure this doesn't happen?
+
+TODO
+
+- Write tests for RomBuffer.
+- Implement CLS instruction.
+- Write instructions.
+
 ## 05/23/2020
 
 - Added `jest` library for tests. Added the initial tests for the CPU class.

@@ -8,6 +8,7 @@ cpu.load(buffer);
 
 // CPU Loop.
 for (;;) {
-  console.log(cpu.debug());
+  console.log(`${cpu.PC}: ${cpu.debug()}`);
   cpu.step();
+  cpu.dumpDisplay();
 }
