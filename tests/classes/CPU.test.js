@@ -99,9 +99,42 @@ describe("CPU", () => {
     expect(args.kk).toEqual(kk);
   });
 
+  test("Prints the current instruction.", () => {
+    const instruction = instructions.find((instr) => instr.id === "CLS");
+
+    const buffer = {
+      data: [instruction.pattern],
+    };
+
+    cpu.load(buffer);
+
+    const subject = cpu.debug();
+    expect(subject).toEqual("00e0 // CLS");
+  });
+
   describe("Instructions", () => {
     beforeEach(() => {
       cpu.reset();
+    });
+
+    test("CLS", () => {
+      const instruction = instructions.find((instr) => instr.id === "CLS");
+
+      const opcode = instruction.pattern;
+
+      const buffer = {
+        data: [opcode],
+      };
+
+      cpu.display.fill(1);
+
+      cpu.load(buffer);
+
+      cpu.step();
+
+      expect(cpu.display).toEqual(
+        new Array(SCREEN_WIDTH * SCREEN_HEIGHT).fill(0)
+      );
     });
 
     test("LD_I_NNN", () => {
@@ -177,6 +210,68 @@ describe("CPU", () => {
       cpu.step();
 
       expect(cpu.PC).toEqual(nnn);
+    });
+
+    test("DRW_VX_VY_N", () => {
+      const instruction = instructions.find(
+        (instr) => instr.id === "DRW_VX_VY_N"
+      );
+
+      const vx = 5;
+      const vy = 1;
+      const x = 0;
+      const y = 1;
+      const n = 5;
+      const I = 0x202;
+      const opcode = instruction.pattern | (x << 8) | (y << 4) | n;
+
+      cpu.registers[x] = vx;
+      cpu.registers[y] = vy;
+      cpu.I = I;
+
+      // Load opcode and data to draw number 8.
+      // Byte 1 = 0xf0. (1111)
+      // Byte 2 = 0x90. (1001)
+      // Byte 3 = 0xf0. (1111)
+      // Byte 4 = 0x90. (1001)
+      // Byte 5 = 0xf0. (1111)
+      const data = [opcode, 0xf090, 0xf090, 0xf000];
+
+      cpu.load({ data });
+      cpu.step();
+
+      // There is probably a clever way to do this,
+      // but I am not trying to be clever right now.
+
+      // Row 1.
+      expect(cpu.display[SCREEN_WIDTH * vy + (vx + 0)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * vy + (vx + 1)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * vy + (vx + 2)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * vy + (vx + 3)]).toEqual(1);
+
+      // Row 2.
+      expect(cpu.display[SCREEN_WIDTH * (vy + 1) + (vx + 0)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 1) + (vx + 1)]).toEqual(0);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 1) + (vx + 2)]).toEqual(0);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 1) + (vx + 3)]).toEqual(1);
+
+      // Row 3.
+      expect(cpu.display[SCREEN_WIDTH * (vy + 2) + (vx + 0)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 2) + (vx + 1)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 2) + (vx + 2)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 2) + (vx + 3)]).toEqual(1);
+
+      // Row 4.
+      expect(cpu.display[SCREEN_WIDTH * (vy + 3) + (vx + 0)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 3) + (vx + 1)]).toEqual(0);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 3) + (vx + 2)]).toEqual(0);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 3) + (vx + 3)]).toEqual(1);
+
+      // Row 5.
+      expect(cpu.display[SCREEN_WIDTH * (vy + 4) + (vx + 0)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 4) + (vx + 1)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 4) + (vx + 2)]).toEqual(1);
+      expect(cpu.display[SCREEN_WIDTH * (vy + 4) + (vx + 3)]).toEqual(1);
     });
   });
 });

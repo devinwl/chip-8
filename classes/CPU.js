@@ -1,34 +1,6 @@
 const { instructions } = require("../constants/instructions.constant");
 const { SCREEN_WIDTH, SCREEN_HEIGHT } = require("../constants/CPU.constant");
 
-class CPUError extends Error {
-  constructor(
-    message,
-    PC = 0x0,
-    registers = [],
-    stack = [],
-    ST = -1,
-    DT = -1,
-    I = -1,
-    SP = -1,
-    memory = {}
-  ) {
-    super(message);
-
-    this.name = "CPUError";
-
-    this.message = message;
-    this.PC = PC;
-    this.registers = registers;
-    this.cpuStack = stack;
-    this.ST = ST;
-    this.DT = DT;
-    this.I = I;
-    this.SP = SP;
-    this.memory = memory;
-  }
-}
-
 class CPU {
   constructor() {
     this.memory = new Uint8Array(4096);
@@ -119,7 +91,8 @@ class CPU {
 
     switch (instruction.id) {
       case "CLS": {
-        // TODO: Implement this.
+        // Reset each pixel to off.
+        this.display.fill(0);
         this.nextInstruction();
         break;
       }
@@ -316,6 +289,34 @@ class CPU {
    */
   _int16ToHex(int16) {
     return int16.toString(16).padStart(4, "0");
+  }
+}
+
+class CPUError extends Error {
+  constructor(
+    message,
+    PC = 0x0,
+    registers = [],
+    stack = [],
+    ST = -1,
+    DT = -1,
+    I = -1,
+    SP = -1,
+    memory = {}
+  ) {
+    super(message);
+
+    this.name = "CPUError";
+
+    this.message = message;
+    this.PC = PC;
+    this.registers = registers;
+    this.cpuStack = stack;
+    this.ST = ST;
+    this.DT = DT;
+    this.I = I;
+    this.SP = SP;
+    this.memory = memory;
   }
 }
 

@@ -2,3 +2,4 @@ node_modules/
 roms/*
 !roms/.gitkeep
 coverage/
+package-lock.json

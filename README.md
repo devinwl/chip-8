@@ -7,13 +7,32 @@ ROMs are stored in the `/roms` folder.
 # Setup
 
 ```
-$ npm install
-$ npm start
+$ yarn
+$ yarn start
+```
+
+# Run Tests
+
+```
+$ yarn test
+
+# To show coverage
+$ yarn test:coverage
 ```
 
 # DevLog
 
 Keeping track of changes and thought processes as we go.
+
+## 05/29/2020
+
+- No new instructions, but there is more testing! The `DRW` instruction turned out to be really tricky for me to test. I had to re-learn how memory management worked and how to mock a ROM file properly. My implementation of `DRW` still works and I'm happy with it. I may eventually move the `display` entirely out of the CPU, but I'll keep it there for now. My plan is to use that structure to power a custom class that works outside of the CPU for showing something nicer than 0's and 1's. I don't plan on writing more tests for the debug/memory dumps, as those will probably be removed later. As of this writing, we are past 80% coverage (88% to be exact)!
+- Just kidding, I added the `CLS` instruction.
+
+TODO:
+
+- Write more instructions.
+- Support the Vf flag (pixel collisions) in DRW instruction.
 
 ## 05/24/2020
 
@@ -22,7 +41,7 @@ Keeping track of changes and thought processes as we go.
 - Added more instructions. I have one working ROM so far!
 - Turns out it's possible to create an infinite loop with a `JP` instruction. Debating if I should add a custom stack buffer to make sure this doesn't happen?
 
-TODO
+TODO:
 
 - Write tests for RomBuffer.
 - Implement CLS instruction.
