@@ -24,6 +24,10 @@ $ yarn test:coverage
 
 Keeping track of changes and thought processes as we go.
 
+## 05/08/2021
+
+I left this project almost a year ago, but now I'm back! After discovering a renewed interest in implementing an emulator, I decided it was time to finish this thing. I found some good tester ROMs to really put my CPU to the test. I've implemented the majority of the instructions that the CHIP-8 CPU supports. I still need to implement handlers for input interrupts, and probably refine the CPU timing. At this point I would rather spend my time making an emulator in a more performant language. It's also a great opportunity to learn something new at the same time. I plan to leave this as-is, and use it to base my future implementations from.
+
 ## 05/29/2020
 
 - No new instructions, but there is more testing! The `DRW` instruction turned out to be really tricky for me to test. I had to re-learn how memory management worked and how to mock a ROM file properly. My implementation of `DRW` still works and I'm happy with it. I may eventually move the `display` entirely out of the CPU, but I'll keep it there for now. My plan is to use that structure to power a custom class that works outside of the CPU for showing something nicer than 0's and 1's. I don't plan on writing more tests for the debug/memory dumps, as those will probably be removed later. As of this writing, we are past 80% coverage (88% to be exact)!
