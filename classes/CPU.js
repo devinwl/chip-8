@@ -1,5 +1,6 @@
 const { instructions } = require("../constants/instructions.constant");
 const { SCREEN_WIDTH, SCREEN_HEIGHT } = require("../constants/CPU.constant");
+const FONTS = require("../constants/fonts.constant");
 
 class CPU {
   constructor() {
@@ -16,6 +17,9 @@ class CPU {
     // To get (x,y), multiple y by `SCREEN_WIDTH`, then add x.
     // e.g. (12, 8). 8 * 64 = 512. 512 + 12 = 524. 524th pixel!
     this.display = new Array(SCREEN_WIDTH * SCREEN_HEIGHT).fill(0);
+
+    // Debug flag. If true, outputs each instruction.
+    this.debug = false;
   }
 
   /**
@@ -24,6 +28,10 @@ class CPU {
    * @param {Buffer} romBuffer
    */
   load({ data: romBuffer }) {
+    for (let i = 0; i < FONTS.length; i++) {
+      this.memory[i] = FONTS[i];
+    }
+
     // The first 0x000-0x200 bytes are reserved.
     // Storage begins at 0x200 for programs.
     const memStart = 0x200;
@@ -51,7 +59,12 @@ class CPU {
       this.throw("Memory out-of-bounds.");
     }
 
-    return (this.memory[this.PC] << 8) | (this.memory[this.PC + 1] << 0);
+    const opcode =
+      (this.memory[this.PC] << 8) | (this.memory[this.PC + 1] << 0);
+
+    this.nextInstruction();
+
+    return opcode;
   }
 
   /**
@@ -76,8 +89,18 @@ class CPU {
   step() {
     const opcode = this.fetch();
     const instruction = this.decode(opcode);
-
     this.execute(opcode, instruction);
+
+    /* istanbul ignore next */
+    if (this.debug) {
+      const args = this.args(opcode, instruction);
+
+      const output = instruction.arguments.reduce((acc, arg) => {
+        return acc.replace(arg.id, args[arg.id]);
+      }, instruction.instruction);
+
+      console.log(`${this._int16ToHex(opcode)} // ${output}`);
+    }
   }
 
   /**
@@ -91,9 +114,7 @@ class CPU {
 
     switch (instruction.id) {
       case "CLS": {
-        // Reset each pixel to off.
         this.display.fill(0);
-        this.nextInstruction();
         break;
       }
 
@@ -101,21 +122,18 @@ class CPU {
         const { nnn } = args;
         this.I = nnn;
 
-        this.nextInstruction();
         break;
       }
 
       case "LD_VX_KK": {
         const { x, kk } = args;
         this.registers[x] = kk;
-        this.nextInstruction();
         break;
       }
 
       case "ADD_VX_KK": {
         const { x, kk } = args;
         this.registers[x] = this.registers[x] + kk;
-        this.nextInstruction();
         break;
       }
 
@@ -146,13 +164,251 @@ class CPU {
             // 64 (`SCREEN_WIDTH`) and the current byte we are
             // on. Then we add the x position, plus the bit we
             // are currently writing horizontally.
-            this.display[SCREEN_WIDTH * (vy + row) + (vx + bit)] = pixel;
+            const vx_vy = SCREEN_WIDTH * (vy + row) + (vx + bit);
+
+            // If we attempt to draw on a pixel that is already there,
+            // then we have a pixel collision. Need to set Vf = 1.
+            // Else set Vf = 0.
+            if (this.display[vx_vy] && pixel) {
+              this.registers[0xf] = 1;
+            } else {
+              this.registers[0xf] = 0;
+            }
+
+            this.display[vx_vy] = this.display[vx_vy] ^ pixel;
           }
         }
       }
 
+      case "SE_VX_KK": {
+        const { x, kk } = args;
+
+        if (this.registers[x] === kk) {
+          this.nextInstruction();
+        }
+
+        break;
+      }
+
+      case "SNE_VX_KK": {
+        const { x, kk } = args;
+
+        if (this.registers[x] !== kk) {
+          this.nextInstruction();
+        }
+
+        break;
+      }
+
+      case "SE_VX_VY": {
+        const { x, y } = args;
+
+        if (this.registers[x] === this.registers[y]) {
+          this.nextInstruction();
+        }
+
+        break;
+      }
+
+      case "SNE_VX_VY": {
+        const { x, y } = args;
+
+        if (this.registers[x] !== this.registers[y]) {
+          this.nextInstruction();
+        }
+
+        break;
+      }
+
+      case "CALL_NNN": {
+        const { nnn } = args;
+
+        this.SP++;
+        this.stack[this.SP] = this.PC;
+        this.PC = nnn;
+
+        break;
+      }
+
+      case "RET": {
+        this.PC = this.stack[this.SP];
+        this.SP--;
+
+        break;
+      }
+
+      case "LD_VX_VY": {
+        const { x, y } = args;
+
+        this.registers[x] = this.registers[y];
+
+        break;
+      }
+
+      case "OR_VX_VY": {
+        const { x, y } = args;
+
+        this.registers[x] = this.registers[x] | this.registers[y];
+
+        break;
+      }
+
+      case "AND_VX_VY": {
+        const { x, y } = args;
+
+        this.registers[x] = this.registers[x] & this.registers[y];
+
+        break;
+      }
+
+      case "XOR_VX_VY": {
+        const { x, y } = args;
+
+        this.registers[x] = this.registers[x] ^ this.registers[y];
+
+        break;
+      }
+
+      case "ADD_VX_VY": {
+        const { x, y } = args;
+        const result = this.registers[x] + this.registers[y];
+
+        const carry = (result & 0x0f00) >> 8;
+        if (carry) {
+          this.registers[0xf] = 1;
+        } else {
+          this.registers[0xf] = 0;
+        }
+
+        this.registers[x] = result & 0x00ff;
+
+        break;
+      }
+
+      case "SUB_VX_VY": {
+        const { x, y } = args;
+        if (this.registers[x] > this.registers[y]) {
+          this.registers[0xf] = 1;
+        } else {
+          this.registers[0xf] = 0;
+        }
+
+        this.registers[x] = this.registers[x] - this.registers[y];
+
+        break;
+      }
+
+      case "SHR_VX_VY": {
+        // I'm not sure why Vy is permitted, because it's never used in this.
+        const { x } = args;
+
+        if (this.registers[x] & 0b1) {
+          this.registers[0xf] = 1;
+        } else {
+          this.registers[0xf] = 0;
+        }
+
+        this.registers[x] = this.registers[x] >> 1;
+
+        break;
+      }
+
+      case "SHL_VX_VY": {
+        // I'm not sure why Vy is permitted, because it's never used in this.
+        const { x } = args;
+
+        if (this.registers[x] >> 7) {
+          this.registers[0xf] = 1;
+        } else {
+          this.registers[0xf] = 0;
+        }
+
+        this.registers[x] = this.registers[x] << 1;
+
+        break;
+      }
+
+      case "LD_DT_VX": {
+        const { x } = args;
+
+        this.DT = this.registers[x];
+
+        break;
+      }
+
+      case "LD_I_VX": {
+        const { x } = args;
+
+        for (let i = 0; i <= x; i++) {
+          this.memory[this.I + i] = this.registers[i];
+        }
+
+        break;
+      }
+
+      case "LD_VX_I": {
+        const { x } = args;
+
+        for (let i = 0; i <= x; i++) {
+          this.registers[i] = this.memory[this.I + i];
+        }
+
+        break;
+      }
+
+      case "LD_B_VX": {
+        // Cheating a little because values in registers are 0-255,
+        // so we can do a little quick maffs (divide by 10, etc) to
+        // get the BCD.
+        const { x } = args;
+        const num = this.registers[x];
+
+        const ones = num % 10;
+        const tens = Math.floor((num / 10) % 10);
+        const hundreds = Math.floor(num / 100);
+
+        this.memory[this.I] = hundreds;
+        this.memory[this.I + 1] = tens;
+        this.memory[this.I + 2] = ones;
+
+        break;
+      }
+
+      case "SUBN_VX_VY": {
+        const { x, y } = args;
+
+        if (this.registers[y] > this.registers[x]) {
+          this.registers[0xf] = 1;
+        } else {
+          this.registers[0xf] = 0;
+        }
+
+        this.registers[x] = this.registers[y] - this.registers[x];
+
+        break;
+      }
+
+      case "LD_F_VX": {
+        const { x } = args;
+
+        // Multiply by 5 because that's the height of a sprite.
+        // If we want character 0xd (13), multiply by 5 (65)
+        // to find the starting address of the sprite (0x41)
+        this.I = this.registers[x] * 5;
+
+        break;
+      }
+
+      case "ADD_I_VX": {
+        const { x } = args;
+
+        this.I = this.I + this.registers[x];
+
+        break;
+      }
+
+      /* istanbul ignore next */
       default: {
-        this.nextInstruction();
         break;
       }
     }
@@ -193,20 +449,8 @@ class CPU {
     this.PC = this.PC + 4;
   }
 
-  /**
-   * Returns the current instruction in a human-
-   * readable way.
-   */
-  debug() {
-    const opcode = this.fetch();
-    const instruction = this.decode(opcode);
-    const args = this.args(opcode, instruction);
-
-    const output = instruction.arguments.reduce((acc, arg) => {
-      return acc.replace(arg.id, args[arg.id]);
-    }, instruction.instruction);
-
-    return `${this._int16ToHex(opcode)} // ${output}`;
+  enableDebug() {
+    this.debug = true;
   }
 
   /**
@@ -232,6 +476,7 @@ class CPU {
   /**
    * Dump the entire memory of CPU.
    */
+  /* istanbul ignore next */
   dump(startingFrom = 0x0) {
     const lines = [];
 
@@ -265,14 +510,26 @@ class CPU {
     this.display = new Array(SCREEN_WIDTH * SCREEN_HEIGHT).fill(0);
   }
 
+  /* istanbul ignore next */
   dumpDisplay() {
     for (let i = 0; i < SCREEN_HEIGHT; i++) {
       let row = "";
       for (let j = 0; j < SCREEN_WIDTH; j++) {
-        row = row.concat(this.display[i * SCREEN_WIDTH + j] ? "1" : "0");
+        row = row.concat(this.display[i * SCREEN_WIDTH + j] ? "█" : " ");
       }
       console.log(row);
     }
+  }
+
+  /* instanbul ignore next */
+  humanReadableInstruction(opcode, instruction) {
+    const args = this.args(opcode, instruction);
+
+    const output = instruction.arguments.reduce((acc, arg) => {
+      return acc.replace(arg.id, args[arg.id]);
+    }, instruction.instruction);
+
+    return `${this._int16ToHex(opcode)} // ${output}`;
   }
 
   /**
